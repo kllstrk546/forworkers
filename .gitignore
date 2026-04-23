@@ -4,5 +4,6 @@ __pycache__/
 *.py[cod]
 service_account*.json
 *.log
+*.pid
 *.session
 *.session-journal
