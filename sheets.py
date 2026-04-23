@@ -26,6 +26,7 @@ BUSINESS_TYPE_INDEX = 5
 STATUS_INDEX = 6
 NEW_STATUS = "Новый"
 WRITTEN_STATUS = "Написал"
+NOT_IN_TELEGRAM_STATUS = "Нет в ТГ"
 
 HEADER_FORMAT = {
     "backgroundColor": {"red": 0.86, "green": 0.91, "blue": 0.98},
@@ -58,6 +59,14 @@ WRITTEN_STATUS_FORMAT = {
     "textFormat": {
         "bold": True,
         "foregroundColor": {"red": 0.08, "green": 0.35, "blue": 0.16},
+    },
+}
+NOT_IN_TELEGRAM_STATUS_FORMAT = {
+    "backgroundColor": {"red": 0.93, "green": 0.88, "blue": 0.88},
+    "horizontalAlignment": "CENTER",
+    "textFormat": {
+        "bold": True,
+        "foregroundColor": {"red": 0.45, "green": 0.12, "blue": 0.12},
     },
 }
 COLUMN_WIDTHS = {
@@ -167,6 +176,7 @@ def apply_status_validation(worksheet: Worksheet) -> None:
                                 "values": [
                                     {"userEnteredValue": NEW_STATUS},
                                     {"userEnteredValue": WRITTEN_STATUS},
+                                    {"userEnteredValue": NOT_IN_TELEGRAM_STATUS},
                                 ],
                             },
                             "showCustomUi": True,
@@ -287,6 +297,9 @@ def normalize_status(status: str) -> str:
     if clean_status == WRITTEN_STATUS.lower():
         return WRITTEN_STATUS
 
+    if clean_status == NOT_IN_TELEGRAM_STATUS.lower():
+        return NOT_IN_TELEGRAM_STATUS
+
     return NEW_STATUS
 
 
@@ -387,7 +400,12 @@ def get_next_lead_for_worker(
     return None, False
 
 
-def mark_lead_as_written(worksheet: Worksheet, row_number: int, worker: str) -> bool:
+def mark_lead_status(
+    worksheet: Worksheet,
+    row_number: int,
+    worker: str,
+    status: str,
+) -> bool:
     row = worksheet.row_values(row_number)
 
     if get_row_value(row, WORKER_INDEX) != worker:
@@ -396,9 +414,22 @@ def mark_lead_as_written(worksheet: Worksheet, row_number: int, worker: str) -> 
     if not is_available_status(get_row_value(row, STATUS_INDEX)):
         return False
 
-    worksheet.update_cell(row_number, STATUS_INDEX + 1, WRITTEN_STATUS)
-    format_status_cell(worksheet, row_number, WRITTEN_STATUS)
+    normalized_status = normalize_status(status)
+    worksheet.update_cell(row_number, STATUS_INDEX + 1, normalized_status)
+    format_status_cell(worksheet, row_number, normalized_status)
     return True
+
+
+def mark_lead_as_written(worksheet: Worksheet, row_number: int, worker: str) -> bool:
+    return mark_lead_status(worksheet, row_number, worker, WRITTEN_STATUS)
+
+
+def mark_lead_as_not_in_telegram(
+    worksheet: Worksheet,
+    row_number: int,
+    worker: str,
+) -> bool:
+    return mark_lead_status(worksheet, row_number, worker, NOT_IN_TELEGRAM_STATUS)
 
 
 def format_status_cell(worksheet: Worksheet, row_number: int, status: str) -> None:
@@ -407,6 +438,10 @@ def format_status_cell(worksheet: Worksheet, row_number: int, status: str) -> No
 
     if clean_status == WRITTEN_STATUS:
         worksheet.format(cell_range, WRITTEN_STATUS_FORMAT)
+        return
+
+    if clean_status == NOT_IN_TELEGRAM_STATUS:
+        worksheet.format(cell_range, NOT_IN_TELEGRAM_STATUS_FORMAT)
         return
 
     worksheet.format(cell_range, NEW_STATUS_FORMAT)
@@ -425,8 +460,9 @@ def get_lead_without_nick(
 
         phone = get_row_value(row, PHONE_INDEX)
         telegram_nick = get_row_value(row, TELEGRAM_NICK_INDEX)
+        status = get_row_value(row, STATUS_INDEX)
         # Если телефон есть, а ника в ТГ нет — берем в обработку
-        if phone and not telegram_nick:
+        if phone and not telegram_nick and is_available_status(status):
             return row_to_lead(index, row)
     return None
 

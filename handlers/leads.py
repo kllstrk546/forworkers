@@ -7,6 +7,7 @@ from gspread.exceptions import GSpreadException
 
 from keyboards import (
     GET_LEAD_BUTTON,
+    MARK_NOT_IN_TELEGRAM_PREFIX,
     MARK_MANUAL_WRITTEN_PREFIX,
     MARK_WRITTEN_PREFIX,
     NEXT_LEAD_PREFIX,
@@ -20,6 +21,7 @@ from sheets import (
     Lead,
     get_next_lead_for_worker,
     get_next_manual_lead,
+    mark_lead_as_not_in_telegram,
     mark_lead_as_written,
 )
 from workers import get_worker_name
@@ -232,3 +234,50 @@ async def mark_written(callback: CallbackQuery, worksheet: Worksheet) -> None:
 @router.callback_query(F.data.startswith(f"{MARK_MANUAL_WRITTEN_PREFIX}:"))
 async def mark_manual_written(callback: CallbackQuery, worksheet: Worksheet) -> None:
     await mark_written(callback, worksheet)
+
+
+@router.callback_query(F.data.startswith(f"{MARK_NOT_IN_TELEGRAM_PREFIX}:"))
+async def mark_not_in_telegram(callback: CallbackQuery, worksheet: Worksheet) -> None:
+    worker = get_worker_name(callback.from_user)
+    row_number = get_row_number(callback.data)
+
+    try:
+        is_updated = mark_lead_as_not_in_telegram(worksheet, row_number, worker)
+        next_lead_item, _ = get_next_lead_for_worker(worksheet, worker)
+    except GSpreadException:
+        logger.exception("Google Sheets error while marking lead as not in Telegram")
+        await callback.message.answer(
+            "Не удалось обновить статус лида. Попробуйте позже.",
+            reply_markup=main_menu_keyboard(),
+        )
+        await callback.answer()
+        return
+
+    await callback.message.edit_reply_markup(reply_markup=None)
+
+    if not is_updated:
+        await callback.message.answer(
+            "Не удалось отметить лид. Возможно, он уже обработан.",
+            reply_markup=main_menu_keyboard(),
+        )
+        await callback.answer()
+        return
+
+    if not next_lead_item:
+        await callback.message.answer(
+            "Готово. Статус обновлен на Нет в ТГ.\n\n"
+            "Больше доступных лидов пока нет.",
+            reply_markup=main_menu_keyboard(),
+        )
+        await callback.answer()
+        return
+
+    await callback.message.answer(
+        "Готово. Статус обновлен на Нет в ТГ.",
+        reply_markup=main_menu_keyboard(),
+    )
+    await callback.message.answer(
+        "Есть еще доступные лиды.",
+        reply_markup=next_available_lead_keyboard(),
+    )
+    await callback.answer()

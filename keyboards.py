@@ -15,6 +15,7 @@ MARK_WRITTEN_PREFIX = "lead_written"
 NEXT_LEAD_PREFIX = "lead_next"
 MARK_MANUAL_WRITTEN_PREFIX = "lead_manual_written"
 NEXT_MANUAL_LEAD_PREFIX = "lead_manual_next"
+MARK_NOT_IN_TELEGRAM_PREFIX = "lead_not_in_tg"
 
 
 def main_menu_keyboard() -> ReplyKeyboardMarkup:
@@ -72,6 +73,12 @@ def ready_lead_keyboard(
             ],
             [
                 InlineKeyboardButton(
+                    text="🚫 Нет в Telegram",
+                    callback_data=f"{MARK_NOT_IN_TELEGRAM_PREFIX}:{row_number}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text="⏭ Следующий лид",
                     callback_data=f"{NEXT_LEAD_PREFIX}:{row_number}",
                 )
@@ -91,6 +98,12 @@ def manual_lead_keyboard(row_number: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="✅ Отметить как Написал вручную",
                     callback_data=f"{MARK_MANUAL_WRITTEN_PREFIX}:{row_number}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🚫 Нет в Telegram",
+                    callback_data=f"{MARK_NOT_IN_TELEGRAM_PREFIX}:{row_number}",
                 )
             ],
             [
