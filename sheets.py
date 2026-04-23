@@ -350,12 +350,21 @@ def find_next_lead(leads: list[Lead], after_row: int = 0) -> Lead | None:
     return None
 
 
+def has_telegram_username(lead: Lead) -> bool:
+    return lead.telegram_nick.startswith("@")
+
+
 def get_ready_leads(worksheet: Worksheet, worker: str) -> list[Lead]:
-    return [
+    leads = [
         lead
         for lead in get_available_worker_leads(worksheet, worker)
         if lead.telegram_nick
     ]
+
+    username_leads = [lead for lead in leads if has_telegram_username(lead)]
+    id_leads = [lead for lead in leads if not has_telegram_username(lead)]
+
+    return username_leads + id_leads
 
 
 def get_manual_leads(worksheet: Worksheet, worker: str) -> list[Lead]:
