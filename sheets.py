@@ -239,3 +239,17 @@ def mark_lead_as_written(worksheet: Worksheet, row_number: int, worker: str) -> 
 
     worksheet.update_cell(row_number, STATUS_INDEX + 1, WRITTEN_STATUS)
     return True
+
+def get_lead_without_nick(worksheet: Worksheet) -> Lead | None:
+    rows = worksheet.get_all_values()[1:]
+    for index, row in enumerate(rows, start=2):
+        phone = get_row_value(row, PHONE_INDEX)
+        telegram_nick = get_row_value(row, TELEGRAM_NICK_INDEX)
+        # Если телефон есть, а ника в ТГ нет — берем в обработку
+        if phone and not telegram_nick:
+            return row_to_lead(index, row)
+    return None
+
+def update_telegram_nick(worksheet: Worksheet, row_number: int, nick: str) -> None:
+    # TELEGRAM_NICK_INDEX равен 4, значит это 5-я колонка в таблице
+    worksheet.update_cell(row_number, TELEGRAM_NICK_INDEX + 1, nick)
