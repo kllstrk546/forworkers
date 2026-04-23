@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+ENV_FILE = BASE_DIR / ".env"
 
 @dataclass(frozen=True)
 class Settings:
@@ -13,7 +17,7 @@ class Settings:
     session_name: str
 
 def get_settings() -> Settings:
-    load_dotenv()
+    load_dotenv(ENV_FILE, override=True)
 
     bot_token = os.getenv("BOT_TOKEN")
     google_service_account_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE")
