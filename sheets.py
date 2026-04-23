@@ -372,6 +372,7 @@ def format_status_cell(worksheet: Worksheet, row_number: int, status: str) -> No
 
     worksheet.format(cell_range, NEW_STATUS_FORMAT)
 
+
 def get_lead_without_nick(worksheet: Worksheet) -> Lead | None:
     rows = worksheet.get_all_values()[1:]
     for index, row in enumerate(rows, start=2):
@@ -381,6 +382,7 @@ def get_lead_without_nick(worksheet: Worksheet) -> Lead | None:
         if phone and not telegram_nick:
             return row_to_lead(index, row)
     return None
+
 
 def update_telegram_nick(worksheet: Worksheet, row_number: int, nick: str) -> None:
     # TELEGRAM_NICK_INDEX равен 4, значит это 5-я колонка в таблице
