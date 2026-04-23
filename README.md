@@ -103,7 +103,7 @@ python login.py
 Файлы для деплоя:
 
 - `Procfile`
-- `runtime.txt`
+- `.python-version`
 - `requirements.txt`
 
 Минимальные переменные окружения на Scalingo:
