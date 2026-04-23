@@ -46,9 +46,24 @@ def add_lead_confirmation_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def ready_lead_keyboard(row_number: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
+def ready_lead_keyboard(
+    row_number: int,
+    telegram_url: str | None = None,
+) -> InlineKeyboardMarkup:
+    inline_keyboard = []
+
+    if telegram_url:
+        inline_keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text="Открыть Telegram",
+                    url=telegram_url,
+                )
+            ]
+        )
+
+    inline_keyboard.extend(
+        [
             [
                 InlineKeyboardButton(
                     text="✅ Отметить как Написал",
@@ -62,6 +77,10 @@ def ready_lead_keyboard(row_number: int) -> InlineKeyboardMarkup:
                 )
             ],
         ]
+    )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=inline_keyboard,
     )
 
 

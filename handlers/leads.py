@@ -29,6 +29,16 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 
+def get_telegram_url(telegram_nick: str) -> str | None:
+    if telegram_nick.startswith("@") and len(telegram_nick) > 1:
+        return f"https://t.me/{telegram_nick[1:]}"
+
+    if telegram_nick.startswith("tg://user?id="):
+        return telegram_nick
+
+    return None
+
+
 def lead_card(lead: Lead, is_manual: bool = False) -> str:
     telegram_nick = "не найден" if is_manual else lead.telegram_nick
 
@@ -93,7 +103,10 @@ async def send_lead_for_worker(
 
     await message.answer(
         lead_card(lead),
-        reply_markup=ready_lead_keyboard(lead.row_number),
+        reply_markup=ready_lead_keyboard(
+            row_number=lead.row_number,
+            telegram_url=get_telegram_url(lead.telegram_nick),
+        ),
     )
 
 
