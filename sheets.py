@@ -26,6 +26,49 @@ STATUS_INDEX = 6
 NEW_STATUS = "Новый"
 WRITTEN_STATUS = "Написал"
 
+HEADER_FORMAT = {
+    "backgroundColor": {"red": 0.86, "green": 0.91, "blue": 0.98},
+    "horizontalAlignment": "CENTER",
+    "verticalAlignment": "MIDDLE",
+    "textFormat": {
+        "bold": True,
+        "foregroundColor": {"red": 0.12, "green": 0.18, "blue": 0.28},
+    },
+    "wrapStrategy": "WRAP",
+}
+BODY_FORMAT = {
+    "verticalAlignment": "MIDDLE",
+    "wrapStrategy": "WRAP",
+}
+PHONE_COLUMN_FORMAT = {
+    "numberFormat": {"type": "TEXT"},
+}
+NEW_STATUS_FORMAT = {
+    "backgroundColor": {"red": 1.0, "green": 0.95, "blue": 0.78},
+    "horizontalAlignment": "CENTER",
+    "textFormat": {
+        "bold": True,
+        "foregroundColor": {"red": 0.45, "green": 0.32, "blue": 0.05},
+    },
+}
+WRITTEN_STATUS_FORMAT = {
+    "backgroundColor": {"red": 0.82, "green": 0.93, "blue": 0.84},
+    "horizontalAlignment": "CENTER",
+    "textFormat": {
+        "bold": True,
+        "foregroundColor": {"red": 0.08, "green": 0.35, "blue": 0.16},
+    },
+}
+COLUMN_WIDTHS = {
+    0: 135,
+    1: 155,
+    2: 155,
+    3: 155,
+    4: 155,
+    5: 230,
+    6: 135,
+}
+
 
 @dataclass(frozen=True)
 class Lead:
@@ -52,7 +95,49 @@ def init_sheet(settings: Settings) -> Worksheet:
     elif rows[0] != HEADERS:
         worksheet.insert_row(HEADERS, index=1, value_input_option="USER_ENTERED")
 
+    initialize_sheet_format(worksheet)
     return worksheet
+
+
+def initialize_sheet_format(worksheet: Worksheet) -> None:
+    worksheet.freeze(rows=1)
+    worksheet.format("A1:G1", HEADER_FORMAT)
+    worksheet.format("A:G", BODY_FORMAT)
+    worksheet.format("D:D", PHONE_COLUMN_FORMAT)
+
+    requests = [
+        {
+            "updateDimensionProperties": {
+                "range": {
+                    "sheetId": worksheet.id,
+                    "dimension": "COLUMNS",
+                    "startIndex": column_index,
+                    "endIndex": column_index + 1,
+                },
+                "properties": {"pixelSize": width},
+                "fields": "pixelSize",
+            }
+        }
+        for column_index, width in COLUMN_WIDTHS.items()
+    ]
+
+    worksheet.spreadsheet.batch_update({"requests": requests})
+
+    rows = worksheet.get_all_values()[1:]
+    for row_number, row in enumerate(rows, start=2):
+        current_phone = get_row_value(row, PHONE_INDEX)
+        normalized_phone = normalize_ukrainian_phone(current_phone)
+
+        if normalized_phone and current_phone != normalized_phone:
+            worksheet.update_cell(row_number, PHONE_INDEX + 1, normalized_phone)
+
+        current_status = get_row_value(row, STATUS_INDEX)
+        normalized_status = normalize_status(current_status)
+
+        if current_status != normalized_status:
+            worksheet.update_cell(row_number, STATUS_INDEX + 1, normalized_status)
+
+        format_status_cell(worksheet, row_number, normalized_status)
 
 
 def normalize_instagram(instagram: str) -> str:
@@ -63,9 +148,27 @@ def normalize_phone(phone: str) -> str:
     return re.sub(r"\D", "", phone)
 
 
+def normalize_ukrainian_phone(phone: str) -> str | None:
+    digits = normalize_phone(phone)
+
+    if len(digits) == 9:
+        return f"380{digits}"
+
+    if len(digits) == 10 and digits.startswith("0"):
+        return f"38{digits}"
+
+    if len(digits) == 11 and digits.startswith("80"):
+        return f"3{digits}"
+
+    if len(digits) == 12 and digits.startswith("380"):
+        return digits
+
+    return None
+
+
 def is_duplicate_lead(worksheet: Worksheet, instagram: str, phone: str) -> bool:
     normalized_instagram = normalize_instagram(instagram)
-    normalized_phone = normalize_phone(phone)
+    normalized_phone = normalize_ukrainian_phone(phone)
 
     rows = worksheet.get_all_values()[1:]
 
@@ -77,7 +180,8 @@ def is_duplicate_lead(worksheet: Worksheet, instagram: str, phone: str) -> bool:
             normalized_instagram
             and normalize_instagram(row_instagram) == normalized_instagram
         )
-        phone_matches = normalized_phone and normalize_phone(row_phone) == normalized_phone
+        row_normalized_phone = normalize_ukrainian_phone(row_phone)
+        phone_matches = normalized_phone and row_normalized_phone == normalized_phone
 
         if instagram_matches or phone_matches:
             return True
@@ -92,18 +196,26 @@ def append_lead(
     phone: str,
     business_type: str,
 ) -> None:
+    normalized_phone = normalize_ukrainian_phone(phone)
+
+    if not normalized_phone:
+        raise ValueError("Invalid Ukrainian phone number")
+
     worksheet.append_row(
         [
             datetime.now().strftime("%d.%m.%Y %H:%M"),
             worker,
             instagram,
-            phone,
+            normalized_phone,
             "",
             business_type,
             NEW_STATUS,
         ],
         value_input_option="RAW",
     )
+    row_number = len(worksheet.get_all_values())
+    worksheet.format(f"A{row_number}:G{row_number}", BODY_FORMAT)
+    format_status_cell(worksheet, row_number, NEW_STATUS)
 
 
 def add_lead_if_not_duplicate(
@@ -131,7 +243,12 @@ def get_row_value(row: list[str], index: int) -> str:
 
 
 def normalize_status(status: str) -> str:
-    return status.strip() or NEW_STATUS
+    clean_status = status.strip().lower()
+
+    if clean_status == WRITTEN_STATUS.lower():
+        return WRITTEN_STATUS
+
+    return NEW_STATUS
 
 
 def is_available_status(status: str) -> bool:
@@ -241,7 +358,19 @@ def mark_lead_as_written(worksheet: Worksheet, row_number: int, worker: str) -> 
         return False
 
     worksheet.update_cell(row_number, STATUS_INDEX + 1, WRITTEN_STATUS)
+    format_status_cell(worksheet, row_number, WRITTEN_STATUS)
     return True
+
+
+def format_status_cell(worksheet: Worksheet, row_number: int, status: str) -> None:
+    clean_status = normalize_status(status)
+    cell_range = f"G{row_number}"
+
+    if clean_status == WRITTEN_STATUS:
+        worksheet.format(cell_range, WRITTEN_STATUS_FORMAT)
+        return
+
+    worksheet.format(cell_range, NEW_STATUS_FORMAT)
 
 def get_lead_without_nick(worksheet: Worksheet) -> Lead | None:
     rows = worksheet.get_all_values()[1:]

@@ -15,7 +15,7 @@ from keyboards import (
     add_lead_confirmation_keyboard,
     main_menu_keyboard,
 )
-from sheets import add_lead_if_not_duplicate
+from sheets import add_lead_if_not_duplicate, normalize_ukrainian_phone
 from workers import get_worker_name
 
 
@@ -75,7 +75,16 @@ async def process_phone(message: Message, state: FSMContext) -> None:
         await message.answer("Номер телефона не может быть пустым. Введите значение:")
         return
 
-    await state.update_data(phone=phone)
+    normalized_phone = normalize_ukrainian_phone(phone)
+
+    if not normalized_phone:
+        await message.answer(
+            "Номер введён неверно. Введите украинский номер, например 0971234567 "
+            "или 380971234567:"
+        )
+        return
+
+    await state.update_data(phone=normalized_phone)
     await state.set_state(AddLead.business_type)
     await message.answer("Введите тип бизнеса:")
 
