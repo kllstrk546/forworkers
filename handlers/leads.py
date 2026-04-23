@@ -33,14 +33,21 @@ def get_telegram_url(telegram_nick: str) -> str | None:
     if telegram_nick.startswith("@") and len(telegram_nick) > 1:
         return f"https://t.me/{telegram_nick[1:]}"
 
-    if telegram_nick.startswith("tg://user?id="):
-        return telegram_nick
-
     return None
 
 
+def get_telegram_display(telegram_nick: str, is_manual: bool = False) -> str:
+    if is_manual:
+        return "не найден"
+
+    if telegram_nick.startswith("tg://user?id="):
+        return f"Telegram ID: {telegram_nick.removeprefix('tg://user?id=')}"
+
+    return telegram_nick
+
+
 def lead_card(lead: Lead, is_manual: bool = False) -> str:
-    telegram_nick = "не найден" if is_manual else lead.telegram_nick
+    telegram_nick = get_telegram_display(lead.telegram_nick, is_manual)
 
     return (
         "Лид для написания:\n\n"
