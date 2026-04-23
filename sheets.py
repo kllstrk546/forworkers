@@ -130,6 +130,7 @@ def initialize_sheet_format(worksheet: Worksheet) -> None:
     ]
 
     worksheet.spreadsheet.batch_update({"requests": requests})
+    apply_status_validation(worksheet)
 
     rows = worksheet.get_all_values()[1:]
     for row_number, row in enumerate(rows, start=2):
@@ -146,6 +147,36 @@ def initialize_sheet_format(worksheet: Worksheet) -> None:
             worksheet.update_cell(row_number, STATUS_INDEX + 1, normalized_status)
 
         format_status_cell(worksheet, row_number, normalized_status)
+
+
+def apply_status_validation(worksheet: Worksheet) -> None:
+    worksheet.spreadsheet.batch_update(
+        {
+            "requests": [
+                {
+                    "setDataValidation": {
+                        "range": {
+                            "sheetId": worksheet.id,
+                            "startRowIndex": 1,
+                            "startColumnIndex": STATUS_INDEX,
+                            "endColumnIndex": STATUS_INDEX + 1,
+                        },
+                        "rule": {
+                            "condition": {
+                                "type": "ONE_OF_LIST",
+                                "values": [
+                                    {"userEnteredValue": NEW_STATUS},
+                                    {"userEnteredValue": WRITTEN_STATUS},
+                                ],
+                            },
+                            "showCustomUi": True,
+                            "strict": True,
+                        },
+                    }
+                }
+            ]
+        }
+    )
 
 
 def normalize_instagram(instagram: str) -> str:

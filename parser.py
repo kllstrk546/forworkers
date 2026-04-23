@@ -22,6 +22,21 @@ def mask_phone(phone: str) -> str:
     return f"{phone[:4]}***{phone[-2:]}"
 
 
+def get_telegram_contact_value(user: object | None) -> str | None:
+    if not user:
+        return None
+
+    username = getattr(user, "username", None)
+    if username:
+        return f"@{username}"
+
+    telegram_id = getattr(user, "id", None)
+    if telegram_id:
+        return f"tg://user?id={telegram_id}"
+
+    return None
+
+
 async def background_parser(settings: Settings, worksheet: Worksheet) -> None:
     session = StringSession(settings.telethon_session_string) if settings.telethon_session_string else settings.session_name
     client = TelegramClient(session, settings.api_id, settings.api_hash)
@@ -64,17 +79,20 @@ async def background_parser(settings: Settings, worksheet: Worksheet) -> None:
             result = await client(ImportContactsRequest([contact]))
 
             user = result.users[0] if result.users else None
-            username = getattr(user, "username", None) if user else None
+            telegram_contact = get_telegram_contact_value(user)
 
-            if username:
-                nick = f"@{username}"
-                update_telegram_nick(worksheet, lead.row_number, nick)
-                logger.info("Лид в строке %s обновлен: %s", lead.row_number, nick)
+            if telegram_contact:
+                update_telegram_nick(worksheet, lead.row_number, telegram_contact)
+                logger.info(
+                    "Лид в строке %s обновлен: %s",
+                    lead.row_number,
+                    telegram_contact,
+                )
                 delay = random.randint(900, 1800)
             else:
                 checked_without_username.add(lead.row_number)
                 logger.info(
-                    "Для лида в строке %s username не найден. Ник в ТГ оставлен пустым.",
+                    "Для лида в строке %s Telegram аккаунт не найден. Ник в ТГ оставлен пустым.",
                     lead.row_number,
                 )
                 delay = random.randint(60, 180)
