@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
+import json
 import re
 
-from gspread import Worksheet, service_account
+from gspread import Worksheet, service_account, service_account_from_dict
 
 from config import Settings
 
@@ -81,7 +82,14 @@ class Lead:
 
 
 def get_worksheet(settings: Settings) -> Worksheet:
-    client = service_account(filename=settings.google_service_account_file)
+    if settings.google_service_account_json:
+        credentials = json.loads(settings.google_service_account_json)
+        client = service_account_from_dict(credentials)
+    elif settings.google_service_account_file:
+        client = service_account(filename=settings.google_service_account_file)
+    else:
+        raise RuntimeError("Google service account credentials are not configured")
+
     spreadsheet = client.open(settings.google_sheet_name)
     return spreadsheet.sheet1
 

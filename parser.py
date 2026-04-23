@@ -4,6 +4,7 @@ import random
 
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
+from telethon.sessions import StringSession
 from telethon.tl.functions.contacts import ImportContactsRequest
 from telethon.tl.types import InputPhoneContact
 from gspread import Worksheet
@@ -22,7 +23,8 @@ def mask_phone(phone: str) -> str:
 
 
 async def background_parser(settings: Settings, worksheet: Worksheet) -> None:
-    client = TelegramClient(settings.session_name, settings.api_id, settings.api_hash)
+    session = StringSession(settings.telethon_session_string) if settings.telethon_session_string else settings.session_name
+    client = TelegramClient(session, settings.api_id, settings.api_hash)
 
     await client.connect()
     if not await client.is_user_authorized():

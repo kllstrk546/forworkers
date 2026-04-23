@@ -31,14 +31,26 @@ pip install -r requirements.txt
 ```env
 BOT_TOKEN=your_telegram_bot_token
 GOOGLE_SERVICE_ACCOUNT_FILE=service_account.json
+GOOGLE_SERVICE_ACCOUNT_JSON=
 GOOGLE_SHEET_NAME=your_google_sheet_name
+API_ID=your_telegram_api_id
+API_HASH=your_telegram_api_hash
+SESSION_NAME=parser_session
+TELETHON_SESSION_STRING=
 ```
 
 Переменные:
 
 - `BOT_TOKEN` - токен Telegram-бота из BotFather.
 - `GOOGLE_SERVICE_ACCOUNT_FILE` - путь к JSON-файлу service account.
+- `GOOGLE_SERVICE_ACCOUNT_JSON` - JSON service account одной строкой для деплоя.
 - `GOOGLE_SHEET_NAME` - название Google Sheets таблицы.
+- `API_ID` и `API_HASH` - данные Telegram API для Telethon.
+- `SESSION_NAME` - имя локального файла сессии Telethon.
+- `TELETHON_SESSION_STRING` - строковая сессия Telethon для деплоя.
+
+Для локального запуска можно использовать `GOOGLE_SERVICE_ACCOUNT_FILE`.
+Для Scalingo удобнее использовать `GOOGLE_SERVICE_ACCOUNT_JSON`.
 
 ## Google Service Account
 
@@ -73,3 +85,42 @@ python main.py
 - `🎯 Дать лид для написания` - получить доступный лид своего воркера.
 
 Воркер определяется по Telegram username. Если username нет, используется `user_<telegram_id>`.
+
+## Подготовка Telethon session string
+
+Для облачного деплоя нельзя полагаться на локальный `.session` файл. Сгенерируйте строковую сессию:
+
+```bash
+python login.py
+```
+
+После авторизации скопируйте выведенное значение в переменную окружения `TELETHON_SESSION_STRING`.
+
+## Деплой на Scalingo
+
+Проект подготовлен к запуску как worker-процесс.
+
+Файлы для деплоя:
+
+- `Procfile`
+- `runtime.txt`
+- `requirements.txt`
+
+Минимальные переменные окружения на Scalingo:
+
+```env
+BOT_TOKEN=your_telegram_bot_token
+GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
+GOOGLE_SHEET_NAME=your_google_sheet_name
+API_ID=your_telegram_api_id
+API_HASH=your_telegram_api_hash
+TELETHON_SESSION_STRING=your_telethon_session_string
+```
+
+После деплоя включите worker:
+
+```bash
+scalingo --app your-app-name scale worker:1
+```
+
+Бот работает через long polling, поэтому отдельный web-процесс не нужен.
