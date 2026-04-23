@@ -25,6 +25,7 @@ def mask_phone(phone: str) -> str:
 async def background_parser(settings: Settings, worksheet: Worksheet) -> None:
     session = StringSession(settings.telethon_session_string) if settings.telethon_session_string else settings.session_name
     client = TelegramClient(session, settings.api_id, settings.api_hash)
+    checked_without_username: set[int] = set()
 
     await client.connect()
     if not await client.is_user_authorized():
@@ -35,9 +36,10 @@ async def background_parser(settings: Settings, worksheet: Worksheet) -> None:
 
     while True:
         try:
-            lead = get_lead_without_nick(worksheet)
+            lead = get_lead_without_nick(worksheet, checked_without_username)
 
             if not lead:
+                checked_without_username.clear()
                 # База обработана, спим 5 минут и проверяем таблицу снова
                 await asyncio.sleep(300)
                 continue
@@ -68,14 +70,15 @@ async def background_parser(settings: Settings, worksheet: Worksheet) -> None:
                 nick = f"@{username}"
                 update_telegram_nick(worksheet, lead.row_number, nick)
                 logger.info("Лид в строке %s обновлен: %s", lead.row_number, nick)
+                delay = random.randint(900, 1800)
             else:
+                checked_without_username.add(lead.row_number)
                 logger.info(
                     "Для лида в строке %s username не найден. Ник в ТГ оставлен пустым.",
                     lead.row_number,
                 )
+                delay = random.randint(60, 180)
 
-            # Рандомная пауза от 15 до 30 минут, чтобы не улететь в бан
-            delay = random.randint(900, 1800)
             logger.info(f"Парсер спит {delay // 60} минут...")
             await asyncio.sleep(delay)
 

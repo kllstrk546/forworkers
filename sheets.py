@@ -381,9 +381,17 @@ def format_status_cell(worksheet: Worksheet, row_number: int, status: str) -> No
     worksheet.format(cell_range, NEW_STATUS_FORMAT)
 
 
-def get_lead_without_nick(worksheet: Worksheet) -> Lead | None:
+def get_lead_without_nick(
+    worksheet: Worksheet,
+    excluded_rows: set[int] | None = None,
+) -> Lead | None:
+    excluded_rows = excluded_rows or set()
     rows = worksheet.get_all_values()[1:]
+
     for index, row in enumerate(rows, start=2):
+        if index in excluded_rows:
+            continue
+
         phone = get_row_value(row, PHONE_INDEX)
         telegram_nick = get_row_value(row, TELEGRAM_NICK_INDEX)
         # Если телефон есть, а ника в ТГ нет — берем в обработку
