@@ -13,9 +13,17 @@ from sheets import get_lead_without_nick, update_telegram_nick
 
 logger = logging.getLogger(__name__)
 
+
+def mask_phone(phone: str) -> str:
+    if len(phone) <= 5:
+        return "***"
+
+    return f"{phone[:4]}***{phone[-2:]}"
+
+
 async def background_parser(settings: Settings, worksheet: Worksheet) -> None:
     client = TelegramClient(settings.session_name, settings.api_id, settings.api_hash)
-    
+
     await client.connect()
     if not await client.is_user_authorized():
         logger.error("❌ Telethon не авторизован! Запустите login.py для создания файла сессии.")
@@ -26,7 +34,7 @@ async def background_parser(settings: Settings, worksheet: Worksheet) -> None:
     while True:
         try:
             lead = get_lead_without_nick(worksheet)
-            
+
             if not lead:
                 # База обработана, спим 5 минут и проверяем таблицу снова
                 await asyncio.sleep(300)
@@ -36,6 +44,12 @@ async def background_parser(settings: Settings, worksheet: Worksheet) -> None:
             if not phone.startswith("+"):
                 phone = "+" + phone
 
+            logger.info(
+                "Парсер проверяет лид в строке %s, телефон %s",
+                lead.row_number,
+                mask_phone(phone),
+            )
+
             # Добавляем в контакты
             contact = InputPhoneContact(
                 client_id=0,
@@ -43,18 +57,20 @@ async def background_parser(settings: Settings, worksheet: Worksheet) -> None:
                 first_name="Lead",
                 last_name=str(lead.row_number)
             )
-            await client(ImportContactsRequest([contact]))
-            
-            # Достаем никнейм
-            try:
-                entity = await client.get_entity(phone)
-                nick = f"@{entity.username}" if getattr(entity, 'username', None) else "Нет ника"
-            except ValueError:
-                nick = "Скрыт или не найден"
+            result = await client(ImportContactsRequest([contact]))
 
-            # Записываем в таблицу
-            update_telegram_nick(worksheet, lead.row_number, nick)
-            logger.info(f"Лид в строке {lead.row_number} обновлен: {nick}")
+            user = result.users[0] if result.users else None
+            username = getattr(user, "username", None) if user else None
+
+            if username:
+                nick = f"@{username}"
+                update_telegram_nick(worksheet, lead.row_number, nick)
+                logger.info("Лид в строке %s обновлен: %s", lead.row_number, nick)
+            else:
+                logger.info(
+                    "Для лида в строке %s username не найден. Ник в ТГ оставлен пустым.",
+                    lead.row_number,
+                )
 
             # Рандомная пауза от 15 до 30 минут, чтобы не улететь в бан
             delay = random.randint(900, 1800)

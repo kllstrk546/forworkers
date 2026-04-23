@@ -45,9 +45,12 @@ def get_worksheet(settings: Settings) -> Worksheet:
 
 def init_sheet(settings: Settings) -> Worksheet:
     worksheet = get_worksheet(settings)
+    rows = worksheet.get_all_values()
 
-    if not worksheet.get_all_values():
+    if not rows:
         worksheet.append_row(HEADERS, value_input_option="USER_ENTERED")
+    elif rows[0] != HEADERS:
+        worksheet.insert_row(HEADERS, index=1, value_input_option="USER_ENTERED")
 
     return worksheet
 
@@ -99,7 +102,7 @@ def append_lead(
             business_type,
             NEW_STATUS,
         ],
-        value_input_option="USER_ENTERED",
+        value_input_option="RAW",
     )
 
 

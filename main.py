@@ -24,10 +24,12 @@ async def main() -> None:
     dp.include_router(add_router)
     dp.include_router(leads_router)
 
-    # <-- Создаем фоновую задачу для парсера перед запуском бота
-    asyncio.create_task(background_parser(settings, worksheet))
+    parser_task = asyncio.create_task(background_parser(settings, worksheet))
 
-    await dp.start_polling(bot, worksheet=worksheet)
+    try:
+        await dp.start_polling(bot, worksheet=worksheet)
+    finally:
+        parser_task.cancel()
 
 
 if __name__ == "__main__":
