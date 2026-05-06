@@ -27,6 +27,9 @@ STATUS_INDEX = 6
 NEW_STATUS = "Новый"
 WRITTEN_STATUS = "Написал"
 NOT_IN_TELEGRAM_STATUS = "Нет в ТГ"
+WORKER_LEAD_ACCESS = {
+    "sunnyday1nla": {"sunnyday1nla", "bruhmomenteverytime"},
+}
 
 HEADER_FORMAT = {
     "backgroundColor": {"red": 0.86, "green": 0.91, "blue": 0.98},
@@ -318,6 +321,17 @@ def row_to_lead(row_number: int, row: list[str]) -> Lead:
     )
 
 
+def can_worker_access_lead(worker: str, row_worker: str) -> bool:
+    normalized_worker = worker.strip().lower()
+    normalized_row_worker = row_worker.strip().lower()
+    allowed_workers = WORKER_LEAD_ACCESS.get(
+        normalized_worker,
+        {normalized_worker},
+    )
+
+    return normalized_row_worker in allowed_workers
+
+
 def get_available_worker_leads(worksheet: Worksheet, worker: str) -> list[Lead]:
     rows = worksheet.get_all_values()[1:]
     leads: list[Lead] = []
@@ -326,7 +340,7 @@ def get_available_worker_leads(worksheet: Worksheet, worker: str) -> list[Lead]:
         row_worker = get_row_value(row, WORKER_INDEX)
         row_status = get_row_value(row, STATUS_INDEX)
 
-        if row_worker == worker and is_available_status(row_status):
+        if can_worker_access_lead(worker, row_worker) and is_available_status(row_status):
             leads.append(row_to_lead(index, row))
 
     return leads
@@ -417,7 +431,7 @@ def mark_lead_status(
 ) -> bool:
     row = worksheet.row_values(row_number)
 
-    if get_row_value(row, WORKER_INDEX) != worker:
+    if not can_worker_access_lead(worker, get_row_value(row, WORKER_INDEX)):
         return False
 
     if not is_available_status(get_row_value(row, STATUS_INDEX)):
