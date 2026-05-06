@@ -109,13 +109,18 @@ def get_worksheet(settings: Settings) -> Worksheet:
 def init_sheet(settings: Settings) -> Worksheet:
     worksheet = get_worksheet(settings)
     rows = worksheet.get_all_values()
+    should_initialize_format = False
 
     if not rows:
         worksheet.append_row(HEADERS, value_input_option="USER_ENTERED")
+        should_initialize_format = True
     elif rows[0] != HEADERS:
         worksheet.insert_row(HEADERS, index=1, value_input_option="USER_ENTERED")
+        should_initialize_format = True
 
-    initialize_sheet_format(worksheet)
+    if should_initialize_format:
+        initialize_sheet_format(worksheet)
+
     return worksheet
 
 
